@@ -1,9 +1,12 @@
 const express=require('express');
 
 const {serverConfig}=require('./config');
-const apiRoutes=require('./routes');
+const apiRoutes=require('./routes/index');
 
 const app=express();
+
+app.use(express.json());
+app.use(express.urlencoded({extended:true}));   //makes sure to read the url encoded stuff
 
 app.use('/api',apiRoutes);
 
