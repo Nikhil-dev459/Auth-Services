@@ -35,7 +35,7 @@ class UserService{
            return response; 
         } 
         catch(error){
-            console.log("Something went wrong in token creation");
+            console.log("Something went wrong in token validation",error);
             throw error;
         }
     }
