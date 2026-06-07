@@ -1,4 +1,6 @@
 const {User,Role}=require('../models/index');
+const AppError=require('../utils/error/app-error');
+const {StatusCodes}=require('http-status-codes');
 
 class UserRepository{
     async create(data){
@@ -7,7 +9,14 @@ class UserRepository{
             return user;
         } 
         catch(error){
-            console.log("Something went wrong on the repository layer");
+            if(error.name=='SequelizeValidationError'){
+                let explanation=[];
+                error.errors.forEach(err => {
+                    explanation.push(err.message);
+                });
+                throw new AppError(explanation,StatusCodes.BAD_REQUEST);
+            }
+            console.log("Something went wrong at the repository layer");
             throw error;
         }
     }

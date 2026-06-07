@@ -2,6 +2,8 @@ const UserRepository=require('../repositories/user-repository');
 const jwt=require('jsonwebtoken');
 const {JWT_KEY}=require('../config/server-config');
 const bcrypt=require('bcrypt');
+const AppError=require('../utils/error/app-error');
+const {StatusCodes}=require('http-status-codes');
 
 class UserService{
     constructor(){
@@ -14,8 +16,10 @@ class UserService{
             return user;    
         } 
         catch(error){
-            console.log("Something went wrong in the service layer");
-            throw error;
+            if(error instanceof AppError){
+                throw error;
+            }
+            throw new AppError("Cannot create a User object",StatusCodes.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -23,19 +27,23 @@ class UserService{
         try{
             //step 1-> fetch the user using the email
             const user=await this.UserRepository.getByEmail(email);
+            if(!user){
+                throw new AppError("User with given email does not exist",StatusCodes.NOT_FOUND);
+            }
             //step 2-> compare incoming plain password with stored encrypted password
             const passwordsMatch=this.checkPassword(password,user.password);
             if(!passwordsMatch){
-                console.log("Passwords don't match");
-                throw {error:'Incorrect Password'};
+                throw new AppError("Passwords don't match",StatusCodes.UNAUTHORIZED);
             }
             //step 3-> if passwords match, then create a token and send it to the user
             const newJWT=this.createToken({email:user.email,id:user.id});
             return newJWT;
         } 
         catch(error){
-            console.log("Something went wrong in the sign-in process");
-            throw error;
+            if(error instanceof AppError){
+                throw error;
+            }
+            throw new AppError("Something went wrong in the sign-in process",StatusCodes.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -43,17 +51,19 @@ class UserService{
         try{
             const response=this.verifyToken(token);
             if(!response){
-                throw {error:'Invalid token'};
+                throw new AppError("Invalid token",StatusCodes.UNAUTHORIZED);
             }
             const user=await this.UserRepository.getById(response.id);
             if(!user){
-                throw{error:'No user with corresponding token exists'};
+                throw new AppError("No user with corresponding token exists",StatusCodes.NOT_FOUND);
             }
             return user.id;
         } 
         catch(error){
-            console.log("Something went wrong in the sign-in process");
-            throw error;
+            if(error instanceof AppError){
+                throw error;
+            }
+            throw new AppError("Authentication failed",StatusCodes.UNAUTHORIZED);
         }
     }
 
@@ -63,8 +73,7 @@ class UserService{
            return result;
         } 
         catch(error){
-            console.log("Something went wrong in token creation");
-            throw error;
+            throw new AppError("Failed to create token",StatusCodes.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -74,8 +83,7 @@ class UserService{
            return response; 
         } 
         catch(error){
-            console.log("Something went wrong in token validation",error);
-            throw error;
+            throw new AppError("Invalid or expired token",StatusCodes.UNAUTHORIZED);
         }
     }
 
@@ -84,8 +92,7 @@ class UserService{
             return bcrypt.compareSync(userInputPlainPassword,encryptedPassword);
         } 
         catch(error){
-            console.log("Something went wrong in password comparison");
-            throw error;
+            throw new AppError("Password comparison failed",StatusCodes.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -94,8 +101,10 @@ class UserService{
             return this.UserRepository.isAdmin(userId);
         } 
         catch(error){
-            console.log("Something went wrong in password comparison");
-            throw error;
+            if(error instanceof AppError){
+                throw error;
+            }
+            throw new AppError("Unable to verify admin privileges",StatusCodes.INTERNAL_SERVER_ERROR);
         }
     }
 }
